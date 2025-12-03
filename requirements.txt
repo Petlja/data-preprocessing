@@ -1,0 +1,8 @@
+pypandoc>=1.5
+docutils>=0.17
+click>=8.0
+GitPython>=3.1
+PyYAML>=6.0
+pydantic>=2.0
+rich>=14.2.0,<15.0.0
+pandocfilters>=1.5.1,<2.0.0

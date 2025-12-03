@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "data-preprocessing"
+version = "0.1.0"
+description = "Tools to fetch and lightly preprocess Sphinx documentation repositories"
+authors = ["Jovan Maric <jovan.maric@petlja.com>"]
+license = "MIT"
+
+packages = [
+  { include = "scripts" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pypandoc = ">=1.5"
+docutils = ">=0.17"
+click = ">=8.0"
+GitPython = ">=3.1"
+PyYAML = ">=6.0"
+pydantic = ">=2.0"
+rich = "^14.2.0"
+pandocfilters = "^1.5.1"
+
+[tool.poetry.scripts]
+data-preprocessing = "scripts.cli:cli"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
