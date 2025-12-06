@@ -1,6 +1,13 @@
 """Make the `scripts` directory a package so `scripts.cli` is importable."""
 
-__all__ = ["cli", "convert_rst_to_md", "filter", "utils"]
+__all__ = [
+    "cli",
+    "config",
+    "directive_templates",
+    "sources",
+    "utils",
+    "pandoc_filters",
+]
 
 
 

@@ -109,5 +109,25 @@ def get_pandoc():
         logger.error(f"Error installing pandoc: {e}", exc_info=True)
         sys.exit(1)
 
+
+@cli.command("bootstrap")
+@click.option("--config", default="config.json", show_default=True, help="Path to config.json")
+@click.option("--base-dir", default="repos", show_default=True, help="Base directory to store repositories")
+@click.option("--output-dir", default="dataset", show_default=True, help="Output directory for the prepared dataset")
+def bootstrap(config, base_dir, output_dir):
+    """Convenience command: install pandoc, sync repos, and prepare dataset."""
+    try:
+        gp = get_pandoc.callback if hasattr(get_pandoc, "callback") else get_pandoc
+        gp()
+
+        gs = git_sync.callback if hasattr(git_sync, "callback") else git_sync
+        gs(config=config, base_dir=base_dir)
+
+        pd = prepare_dataset.callback if hasattr(prepare_dataset, "callback") else prepare_dataset
+        pd(base_dir=base_dir, output_dir=output_dir)
+    except Exception as e:
+        logger.error("Bootstrap failed: %s", e, exc_info=True)
+        sys.exit(1)
+
 if __name__ == "__main__":
     cli()

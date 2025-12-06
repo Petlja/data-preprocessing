@@ -1,10 +1,24 @@
 import os
+import re
+import tempfile
 from typing import List, Optional
 from pydantic import BaseModel, ValidationError
-from scripts.utils import read_yaml
+from pypandoc import convert_file
+from scripts.utils import read_str, read_yaml, write_str
 from logging import getLogger
 
 logger = getLogger(__name__)
+
+extra_rst = [
+    "--standalone=false",
+    f"--filter={ os.path.join('.', 'scripts', 'pandoc_filters', 'filter_rst.py')}", 
+    "--quiet"
+    ]
+extra_md = [
+    "--standalone=false",
+    f"--filter={ os.path.join('.', 'scripts', 'pandoc_filters', 'filter_md.py')}", 
+    "--quiet"
+    ]
 
 class Activity(BaseModel):
     type: Optional[str] = None
@@ -49,11 +63,19 @@ def collect_activity_files(repo_path: str) -> List[str]:
     raise FileNotFoundError(f"No recognized index file found in repo: {repo_path}")
 
 def convert_files(base_dir: str, files: List[str], output_dir: str) -> None:
-    for src in files:
-        rel_path = os.path.relpath(src, start=base_dir)
-        dest = os.path.splitext(os.path.join(output_dir, rel_path))[0] + ".md"
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        _convert_file(src, dest)
+    for source_file_path in files:
+        rel_path = os.path.relpath(source_file_path, start=base_dir)
+        extension = os.path.splitext(rel_path)[1].lower()[1:]
+        output_file_path = os.path.splitext(os.path.join(output_dir, rel_path))[0] + ".md"
+        os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+        if extension == "md":
+            updated = _preprocess_markdown_fences(source_file_path)
+            write_str(output_file_path, updated)
+            _convert_file(output_file_path, extension)
+        if extension == "rst":
+            updated = _preprocess_rst(source_file_path)
+            write_str(output_file_path, updated)
+            _convert_file(output_file_path, extension, output_file_path)
 
 def _collect_from_plct(plct_source_path) -> List[str]:
     found: List[str] = []
@@ -84,17 +106,30 @@ def _collect_from_petljadoc(index_path) -> List[str]:
 class MissingPandocError(Exception):
     pass
 
-def _convert_file(src: str, dest: str) -> None:
-    """Convert using pypandoc."""
+def _convert_file(src: str, extension: str = None, dest: str = None) -> None:
+    if dest is None:
+        dest = src
+    extra = extra_md if extension == "md" else extra_rst
+    logger.info("Converting %s => %s", src, dest)
     try:
-        import pypandoc
+        convert_file(src, to="md", format=extension, extra_args=extra, outputfile=dest)
+    except OSError as e:
+        logger.error("Pandoc not found when converting %s: %s", src, e)
+        raise MissingPandocError("Pandoc is not installed or not on PATH") from e
     except Exception:
-        raise MissingPandocError("pypandoc not installed")
-    filter_path = os.path.join('.', 'scripts', 'filter.py')
-    logger.info(f"Converting {src} => {dest}")
-    extra = ["--standalone=false", "--quiet"]
-    if src.endswith(".md"):
-        pypandoc.convert_file(src, to="md", format="md", extra_args=extra, outputfile=dest)
-    elif src.endswith(".rst"):
-        extra.append(f"--filter={filter_path}")
-        pypandoc.convert_file(src, to="md", format="md", extra_args=extra, outputfile=dest)
+        logger.exception("Error converting %s => %s", src, dest)
+        raise
+
+
+def _preprocess_markdown_fences(src_path: str) -> str:
+    src = read_str(src_path)
+    regex_fence = r"(\s*)```{(\w+)}"
+
+    updated_src = re.sub(regex_fence, r"\1```\2", src)
+    return updated_src
+
+def _preprocess_rst(src_path: str) -> str:
+    src = read_str(src_path)
+    regex_empty_lines = r"^[ \t\s]+$"
+    updated_src = re.sub(regex_empty_lines, r"", src, flags=re.MULTILINE)
+    return updated_src
