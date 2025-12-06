@@ -3,8 +3,7 @@ from typing import Any, Optional, Dict, Callable, List
 from pandocfilters import toJSONFilter, Div, Para, Str, walk, CodeBlock, RawBlock
 import re
 
-from scripts.directive_templates import YOUTUBE_LINK
-from scripts.pandoc_filters.filter_util import *
+from filter_util import DIRECTIVES, normalize_to_blocks
 
 def filter(key, value, format, meta) -> Optional[dict[str, Any]]:
     opt_re = re.compile(r":(\w+):\s*(.*)")

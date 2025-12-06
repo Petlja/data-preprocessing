@@ -6,7 +6,7 @@ import sys
 from typing import Any, Optional, Dict, Callable, List
 from pandocfilters import toJSONFilter, Div, Para, Str, walk, CodeBlock, RawBlock
 
-from scripts.directive_templates import YOUTUBE_LINK
+from directive_templates import YOUTUBE_LINK
 
 def stringify_with_newlines(x: Any) -> str:
     result: List[str] = []

@@ -4,8 +4,7 @@ import sys
 from typing import Any, Optional, Dict, Callable, List
 from pandocfilters import toJSONFilter, Div, Para, Str, walk, CodeBlock, RawBlock
 
-from scripts.directive_templates import YOUTUBE_LINK
-from scripts.pandoc_filters.filter_util import *
+from filter_util import DIRECTIVES, stringify_with_newlines, normalize_to_blocks
 
 
 def filter(key, value, format, meta) -> Optional[dict[str, Any]]:

@@ -30,7 +30,7 @@ If you prefer venv + pip:
 ```powershell
 # Create and activate a venv
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\activate.bat
 
 # Install runtime dependencies
 pip install -r requirements.txt

@@ -1,1 +1,1 @@
-__all__ = ["filter_md", "filter_rst", "filter_util"]
+__all__ = ["filter_md", "filter_rst", "filter_util", "directive_templates"]
