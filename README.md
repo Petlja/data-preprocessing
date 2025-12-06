@@ -7,8 +7,6 @@ Tools to fetch and lightly preprocess Sphinx-based documentation repositories.
 - **Detect project type**: identify the Sphinx project type (if applicable).
 - **Extract sources**: collect activity/source files referenced in `_sources/index.yaml` or `source/index.md`and convert them to normalized Markdown.
 
-```
-
 ## Setup
 
 If you use Poetry (recommended):
