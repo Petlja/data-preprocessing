@@ -18,9 +18,6 @@ pip install poetry
 # Install dependencies and create the virtual environment
 poetry install
 
-# Optional: open a poetry shell
-poetry shell
-
 # Run the bootstrap command (installs pandoc, syncs repos, prepares dataset)
 python -m scripts.cli bootstrap --config config.json --base-dir repos --output-dir dataset
 ```
@@ -101,6 +98,23 @@ Options examples:
 python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset
 ```
 
+Additional options:
+
+- `--jobs`: control the number of worker threads for conversions. Use `--jobs 1` to force single-threaded (serial) conversion; omit the option to use the default (number of CPUs), or pass `--jobs N` to use `N` workers explicitly.
+
+Examples:
+
+```powershell
+# Force serial conversion (useful for debugging or on constrained systems)
+python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset --jobs 1
+
+# Use the default number of workers (number of CPUs)
+python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset
+
+# Use 4 workers explicitly
+python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset --jobs 4
+```
+
 Notes:
 - Ensure `pandoc` is available (use `get-pandoc` to install if needed).
 
@@ -128,4 +142,14 @@ What it does:
 Notes:
 - Useful for initial environment setup on a fresh machine or CI job.
 - The command calls the same underlying code as the three individual commands, so you can still run steps separately when you need more control.
+ 
+Notes about parallel conversions:
+
+- The `bootstrap` command forwards the `--jobs` option to `prepare-dataset`. If you experience issues with parallel pandoc conversions or pandoc filters, retry with `--jobs 1` to run conversions serially.
+
+Example (force serial conversion during bootstrap):
+
+```powershell
+python -m scripts.cli bootstrap --config my-config.json --base-dir repos --output-dir dataset --jobs 1
+```
 

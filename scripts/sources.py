@@ -1,7 +1,7 @@
 import os
 import re
-import tempfile
 from typing import List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pydantic import BaseModel, ValidationError
 from pypandoc import convert_file
 from scripts.utils import read_str, read_yaml, write_str
@@ -43,6 +43,8 @@ class CourseIndex(BaseModel):
     description: Optional[dict] = None
     lessons: List[Lesson] = []
 
+class MissingPandocError(Exception):
+    pass
 
 def _load_index(yaml_path: str) -> CourseIndex:
     raw = read_yaml(yaml_path)
@@ -62,8 +64,8 @@ def collect_activity_files(repo_path: str) -> List[str]:
         return _collect_from_plct(source_index_path)
     raise FileNotFoundError(f"No recognized index file found in repo: {repo_path}")
 
-def convert_files(base_dir: str, files: List[str], output_dir: str) -> None:
-    for source_file_path in files:
+def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers: int) -> None:
+    def _process_one(source_file_path: str) -> None:
         rel_path = os.path.relpath(source_file_path, start=base_dir)
         extension = os.path.splitext(rel_path)[1].lower()[1:]
         output_file_path = os.path.splitext(os.path.join(output_dir, rel_path))[0] + ".md"
@@ -71,11 +73,36 @@ def convert_files(base_dir: str, files: List[str], output_dir: str) -> None:
         if extension == "md":
             updated = _preprocess_markdown_fences(source_file_path)
             write_str(output_file_path, updated)
-            _convert_file(output_file_path, extension)
-        if extension == "rst":
+            _convert_file(output_file_path, "md", output_file_path)
+        elif extension == "rst":
             updated = _preprocess_rst(source_file_path)
             write_str(output_file_path, updated)
-            _convert_file(output_file_path, extension, output_file_path)
+            _convert_file(output_file_path, "rst", output_file_path)
+        else:
+            logger.debug("Skipping unsupported extension %s for %s", extension, source_file_path)
+
+    errors: List[Exception] = []
+
+    if max_workers == 1:
+        for src in files:
+            try:
+                _process_one(src)
+            except Exception as e:
+                logger.exception("Error converting %s", src)
+                errors.append(e)
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as exc:
+            futures = {exc.submit(_process_one, src): src for src in files}
+            for fut in as_completed(futures):
+                src = futures[fut]
+                try:
+                    fut.result()
+                except Exception as e:
+                    logger.exception("Error converting %s", src, e)
+                    errors.append(e)
+
+    if errors:
+        raise errors[0]
 
 def _collect_from_plct(plct_source_path) -> List[str]:
     found: List[str] = []
@@ -102,9 +129,6 @@ def _collect_from_petljadoc(index_path) -> List[str]:
                 logger.warning(f"Activity file not found: {src}")
 
     return found
-
-class MissingPandocError(Exception):
-    pass
 
 def _convert_file(src: str, extension: str = None, dest: str = None) -> None:
     if dest is None:

@@ -1,9 +1,7 @@
 
-import re
-import sys
-from typing import Any, Optional, Dict, Callable, List
-from pandocfilters import toJSONFilter, Div, Para, Str, walk, CodeBlock, RawBlock
 
+from typing import Any, Optional
+from pandocfilters import toJSONFilter
 from filter_util import DIRECTIVES, stringify_with_newlines, normalize_to_blocks
 
 

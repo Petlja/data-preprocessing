@@ -21,7 +21,7 @@ rich = "^14.2.0"
 pandocfilters = "^1.5.1"
 
 [tool.poetry.scripts]
-data-preprocessing = "scripts.cli:cli"
+data-preprocessing = "scripts.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

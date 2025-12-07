@@ -66,9 +66,14 @@ def git_sync(config, base_dir):
 @cli.command("prepare-dataset")
 @click.option("--base-dir", default="repos", show_default=True, help="Base directory repositories are stored in")
 @click.option("--output-dir", default="dataset", show_default=True, help="Output directory for the prepared dataset")
-def prepare_dataset(base_dir, output_dir):
+@click.option("--jobs", type=click.IntRange(1), default=os.cpu_count(), show_default=True, help="Number of worker threads: 1 = serial; default is number of CPUs")
+def prepare_dataset(base_dir, output_dir, jobs):
     """Prepare dataset by converting activity files from repositories into markdown format."""
     os.makedirs(output_dir, exist_ok=True)
+
+    if not os.path.exists(base_dir):
+        logger.error(f"Base directory not found: {base_dir}.")
+        sys.exit(1)
 
     for repo in os.listdir(base_dir):
         repo_path = os.path.join(base_dir, repo)
@@ -84,7 +89,12 @@ def prepare_dataset(base_dir, output_dir):
                 logger.error("No activity files found in index.")
                 return
             try:
-                convert_files(base_dir, files, output_dir)
+                max_workers = jobs
+                if max_workers == 1:
+                    logger.info("Converting files serially (1 worker)")
+                elif max_workers > 1:
+                    logger.info(f"Converting files in parallel using {max_workers} workers...")
+                convert_files(base_dir, files, output_dir, max_workers=max_workers)
             except MissingPandocError as e:
                 logger.error(f"Runtime error: {e}")
                 sys.exit(1)
@@ -114,7 +124,8 @@ def get_pandoc():
 @click.option("--config", default="config.json", show_default=True, help="Path to config.json")
 @click.option("--base-dir", default="repos", show_default=True, help="Base directory to store repositories")
 @click.option("--output-dir", default="dataset", show_default=True, help="Output directory for the prepared dataset")
-def bootstrap(config, base_dir, output_dir):
+@click.option("--jobs", type=click.IntRange(1), default=os.cpu_count(), show_default=True, help="Number of worker threads for dataset preparation (1 = serial).")
+def bootstrap(config, base_dir, output_dir, jobs):
     """Convenience command: install pandoc, sync repos, and prepare dataset."""
     try:
         gp = get_pandoc.callback if hasattr(get_pandoc, "callback") else get_pandoc
@@ -124,10 +135,15 @@ def bootstrap(config, base_dir, output_dir):
         gs(config=config, base_dir=base_dir)
 
         pd = prepare_dataset.callback if hasattr(prepare_dataset, "callback") else prepare_dataset
-        pd(base_dir=base_dir, output_dir=output_dir)
+        pd(base_dir=base_dir, output_dir=output_dir, jobs=jobs)
     except Exception as e:
         logger.error("Bootstrap failed: %s", e, exc_info=True)
         sys.exit(1)
 
+def main():
+    """Console-script entry point for packaging tools."""
+    return cli()
+
+
 if __name__ == "__main__":
-    cli()
+    main()

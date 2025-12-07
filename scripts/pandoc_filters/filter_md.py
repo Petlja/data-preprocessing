@@ -1,6 +1,6 @@
 
-from typing import Any, Optional, Dict, Callable, List
-from pandocfilters import toJSONFilter, Div, Para, Str, walk, CodeBlock, RawBlock
+from typing import Any, Optional, Dict, List
+from pandocfilters import toJSONFilter
 import re
 
 from filter_util import DIRECTIVES, normalize_to_blocks
