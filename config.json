@@ -1,10 +1,39 @@
 {
   "repos": [
-    {
-      "url": "https://github.com/Petlja/os6_inf_prog"
-    },
-    {
-      "url": "https://github.com/Petlja/etit4_prog"
-    }
+    { "url": "https://github.com/Petlja/os1_dig_svet" },
+    { "url": "https://github.com/Petlja/os2_dig_svet" },
+    { "url": "https://github.com/Petlja/os3_dig_svet" },
+    { "url": "https://github.com/Petlja/os4_dig_svet" },
+    { "url": "https://github.com/Petlja/os5_inf_ikt"},
+    { "url": "https://github.com/Petlja/os5_inf_prog" },
+    { "url": "https://github.com/Petlja/os6_inf_prog" },
+    { "url": "https://github.com/Petlja/os6_inf_ikt" },
+    { "url": "https://github.com/Petlja/os7_inf_ikt" },
+    { "url": "https://github.com/Petlja/os7_inf_prog" },
+    { "url": "https://github.com/Petlja/os8_inf_ikt" },
+    { "url": "https://github.com/Petlja/os8_inf_prog" },
+    { "url": "https://github.com/Petlja/gim1_rac_prog" },
+    { "url": "https://github.com/Petlja/gim1_rac_ikt" },
+    { "url": "https://github.com/Petlja/gim2_rac_prog" },
+    { "url": "https://github.com/Petlja/gim2_rac_ikt" },
+    { "url": "https://github.com/Petlja/gim3_rac_ikt_p" },
+    { "url": "https://github.com/Petlja/gim3_rac_web_p" },
+    { "url": "https://github.com/Petlja/gim3_rac_web_d" },
+    { "url": "https://github.com/Petlja/gim4_rac_baze_p" },
+    { "url": "https://github.com/Petlja/gim4_rac_baze_d" },
+    { "url": "https://github.com/Petlja/gim4_rac_baze_prak" },
+    { "url": "https://github.com/Petlja/gim4_rac_prim_p" },
+    { "url": "https://github.com/Petlja/etit4_prog" },
+    { "url": "https://github.com/Petlja/etit3_prog" },
+    { "url": "https://github.com/Petlja/etit2_prog" },
+    { "url": "https://github.com/Petlja/etit1_prog" },
+    { "url": "https://github.com/Petlja/specit1_prog" },
+    { "url": "https://github.com/Petlja/specit2_prog" },
+    { "url": "https://github.com/Petlja/specit3_oop" },
+    { "url": "https://github.com/Petlja/specit3_prog" },
+    { "url": "https://github.com/Petlja/specit4"  },
+    { "url": "https://github.com/Petlja/specit4_ai"},
+    { "url": "https://github.com/Petlja/specit4_bazepodataka" },
+    { "url": "https://github.com/Petlja/specit4_web" }
   ]
 }

@@ -1,7 +1,8 @@
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import unicodedata
 from pydantic import BaseModel, ValidationError
 from pypandoc import convert_file
 from scripts.utils import read_str, read_yaml, write_str
@@ -68,7 +69,12 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
     def _process_one(source_file_path: str) -> None:
         rel_path = os.path.relpath(source_file_path, start=base_dir)
         extension = os.path.splitext(rel_path)[1].lower()[1:]
-        output_file_path = os.path.splitext(os.path.join(output_dir, rel_path))[0] + ".md"
+
+        parts = rel_path.split(os.sep)
+        safe_parts = [_normalize_filename(p) for p in parts]
+        safe_rel_path = os.path.join(*safe_parts)
+        output_file_path = os.path.splitext(os.path.join(output_dir, safe_rel_path))[0] + ".md"
+        
         os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
         if extension == "md":
             updated = _preprocess_markdown_fences(source_file_path)
@@ -81,7 +87,7 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
         else:
             logger.debug("Skipping unsupported extension %s for %s", extension, source_file_path)
 
-    errors: List[Exception] = []
+    errors: List[Tuple[str, Exception]] = []
 
     if max_workers == 1:
         for src in files:
@@ -89,7 +95,7 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
                 _process_one(src)
             except Exception as e:
                 logger.exception("Error converting %s", src)
-                errors.append(e)
+                errors.append((src, e))
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as exc:
             futures = {exc.submit(_process_one, src): src for src in files}
@@ -98,11 +104,8 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
                 try:
                     fut.result()
                 except Exception as e:
-                    logger.exception("Error converting %s", src, e)
-                    errors.append(e)
-
-    if errors:
-        raise errors[0]
+                    logger.exception("Error converting %s", src)
+                    errors.append((src, e))
 
 def _collect_from_plct(plct_source_path) -> List[str]:
     found: List[str] = []
@@ -157,3 +160,37 @@ def _preprocess_rst(src_path: str) -> str:
     regex_empty_lines = r"^[ \t\s]+$"
     updated_src = re.sub(regex_empty_lines, r"", src, flags=re.MULTILINE)
     return updated_src
+
+def _normalize_filename(name: str, max_length: int = 255) -> str:
+    if not name:
+        return name
+
+    translit = {
+        'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Ђ':'Dj','Е':'E','Ж':'Z','З':'Z','И':'I','Ј':'J','К':'K','Л':'L','Љ':'Lj','М':'M','Н':'N','Њ':'Nj','О':'O','П':'P','Р':'R','С':'S','Т':'T','Ћ':'C','У':'U','Ф':'F','Х':'H','Ц':'C','Ч':'C','Џ':'Dz','Ш':'S',
+        'а':'a','б':'b','в':'v','г':'g','д':'d','ђ':'dj','е':'e','ж':'z','з':'z','и':'i','ј':'j','к':'k','л':'l','љ':'lj','м':'m','н':'n','њ':'nj','о':'o','п':'p','р':'r','с':'s','т':'t','ћ':'c','у':'u','ф':'f','х':'h','ц':'c','ч':'c','џ':'dz','ш':'s',
+    }
+
+    s = unicodedata.normalize('NFKD', name)
+
+    s2_chars = []
+    for ch in s:
+        if ch in translit:
+            s2_chars.append(translit[ch])
+        else:
+            if unicodedata.category(ch).startswith('M'):
+                continue
+            s2_chars.append(ch)
+    s2 = ''.join(s2_chars)
+
+    s2 = s2.replace(os.sep, '_')
+    s2 = re.sub(r'[^A-Za-z0-9._\-]', '_', s2)
+    s2 = re.sub(r'_+', '_', s2)
+
+    s2 = s2.strip('_.')
+
+    if len(s2) > max_length:
+        s2 = s2[:max_length]
+
+    if not s2:
+        return 'file'
+    return s2
