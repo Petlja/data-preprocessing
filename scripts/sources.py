@@ -71,6 +71,8 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
         extension = os.path.splitext(rel_path)[1].lower()[1:]
 
         parts = rel_path.split(os.sep)
+        # Remove repository source folder components so archive paths don't include them
+        parts = [p for p in parts if p not in ("source", "_sources")]
         safe_parts = [_normalize_filename(p) for p in parts]
         safe_rel_path = os.path.join(*safe_parts)
         output_file_path = os.path.splitext(os.path.join(output_dir, safe_rel_path))[0] + ".md"
