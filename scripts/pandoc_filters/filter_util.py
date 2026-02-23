@@ -77,7 +77,7 @@ def reveal_handler(options: Dict[str, Any], original_text: str, contents: List[A
 
 def ytpopup_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     html = YOUTUBE_LINK.format(video_id=options.get("id", ""))
-    return Div([ident, ["text"], []], [RawBlock("html", html)])
+    return Div([ident, ["video"], []], [RawBlock("html", html)])
 
 def activecode_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     repo_root = options.pop("repo_base_dir", "")
