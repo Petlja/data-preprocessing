@@ -20,6 +20,7 @@ def filter(key, value, format, meta) -> Optional[dict[str, Any]]:
             kvs.append(["id", id])
 
         parsed_kvs = {k: v for k, v in kvs}
+        parsed_kvs["repo_base_dir"] = meta.get("repo_base_dir", {}).get("c", "")
         original_text = stringify_with_newlines(contents)
 
         handler = info.get("handler_rst")

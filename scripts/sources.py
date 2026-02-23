@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import unicodedata
 from pydantic import BaseModel, ValidationError
@@ -65,10 +65,11 @@ def collect_activity_files(repo_path: str) -> List[str]:
         return _collect_from_plct(source_index_path)
     raise FileNotFoundError(f"No recognized index file found in repo: {repo_path}")
 
-def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers: int) -> None:
+def convert_files(base_dir: str, repo: str, files: List[str], output_dir: str, max_workers: int) -> None:
     def _process_one(source_file_path: str) -> None:
         rel_path = os.path.relpath(source_file_path, start=base_dir)
         extension = os.path.splitext(rel_path)[1].lower()[1:]
+        repo_base_dir = os.path.join(os.path.abspath(base_dir), repo)
 
         parts = rel_path.split(os.sep)
         # Remove repository source folder components so archive paths don't include them
@@ -81,11 +82,11 @@ def convert_files(base_dir: str, files: List[str], output_dir: str, max_workers:
         if extension == "md":
             updated = _preprocess_markdown_fences(source_file_path)
             write_str(output_file_path, updated)
-            _convert_file(output_file_path, "md", output_file_path)
+            _convert_file(output_file_path, {"repo_base_dir": repo_base_dir}, "md", output_file_path)
         elif extension == "rst":
             updated = _preprocess_rst(source_file_path)
             write_str(output_file_path, updated)
-            _convert_file(output_file_path, "rst", output_file_path)
+            _convert_file(output_file_path, {"repo_base_dir": repo_base_dir}, "rst", output_file_path)
         else:
             logger.debug("Skipping unsupported extension %s for %s", extension, source_file_path)
 
@@ -135,10 +136,13 @@ def _collect_from_petljadoc(index_path) -> List[str]:
 
     return found
 
-def _convert_file(src: str, extension: str = None, dest: str = None) -> None:
+def _convert_file(src: str, meta: Dict[str, Any], extension: str = None, dest: str = None) -> None:
     if dest is None:
         dest = src
-    extra = extra_md if extension == "md" else extra_rst
+    extra = list(extra_md if extension == "md" else extra_rst)
+    for key, value in meta.items():
+        extra.append(f"--metadata={key}={value}")
+
     logger.info("Converting %s => %s", src, dest)
     try:
         convert_file(src, to="md", format=extension, extra_args=extra, outputfile=dest)
@@ -152,8 +156,8 @@ def _convert_file(src: str, extension: str = None, dest: str = None) -> None:
 
 def _preprocess_markdown_fences(src_path: str) -> str:
     src = read_str(src_path)
-    regex_fence = r"(\s*)```{(\w+)}"
-
+    src = src.replace("\py-code", "pycode").replace("db-query", "dbquery")
+    regex_fence = r"(\s*)```{(\w+)}(\s+(\w+))?"
     updated_src = re.sub(regex_fence, r"\1```\2", src)
     return updated_src
 

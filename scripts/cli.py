@@ -94,7 +94,7 @@ def prepare_dataset(base_dir, output_dir, jobs):
                     logger.info("Converting files serially (1 worker)")
                 elif max_workers > 1:
                     logger.info(f"Converting files in parallel using {max_workers} workers...")
-                convert_files(base_dir, files, output_dir, max_workers=max_workers)
+                convert_files(base_dir, repo, files, output_dir, max_workers=max_workers)
             except MissingPandocError as e:
                 logger.error(f"Runtime error: {e}")
                 sys.exit(1)

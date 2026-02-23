@@ -134,3 +134,6 @@ repos/
 dataset/
 pandoc-*.msi
 dataset.zip
+dataset-dev/
+repos-dev/
+dev-config.json
