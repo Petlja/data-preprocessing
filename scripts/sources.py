@@ -156,6 +156,7 @@ def _convert_file(src: str, meta: Dict[str, Any], extension: str = None, dest: s
 
 def _preprocess_markdown_fences(src_path: str) -> str:
     src = read_str(src_path)
+    # Replace non-standard code block classes with ones that Pandoc filters will recognize, and remove any language specifier after the class to prevent Pandoc from treating it as a code block language
     src = src.replace("\py-code", "pycode").replace("db-query", "dbquery")
     regex_fence = r"(\s*)```{(\w+)}(\s+(\w+))?"
     updated_src = re.sub(regex_fence, r"\1```\2", src)
@@ -163,6 +164,9 @@ def _preprocess_markdown_fences(src_path: str) -> str:
 
 def _preprocess_rst(src_path: str) -> str:
     src = read_str(src_path)
+    # Strip asterisks from acsection markers so Pandoc won't parse them as emphasis
+    src = re.sub(r"(#\s*)-\*-\s*(acsection:\s*\S+)\s*-\*-", r"# {\2}", src)
+    # Remove lines that are only whitespace to prevent Pandoc from treating them as hard breaks
     regex_empty_lines = r"^[ \t\s]+$"
     updated_src = re.sub(regex_empty_lines, r"", src, flags=re.MULTILINE)
     return updated_src

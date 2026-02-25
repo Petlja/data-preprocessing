@@ -1,38 +1,9 @@
 
 
-from typing import Any, Optional
 from pandocfilters import toJSONFilter
-from filter_util import DIRECTIVES, stringify_with_newlines, normalize_to_blocks
 
+from filter import filter as pandoc_filter
 
-def filter(key, value, format, meta) -> Optional[dict[str, Any]]:
-    if key == "Div":
-        [[ident, classes, kvs], contents] = value
-        div_class = classes[0] if classes else ""
-
-        info = DIRECTIVES.get(div_class)
-        if not info:
-            return None
-
-        if info.get("has_id") and contents:
-            id = stringify_with_newlines(contents[0])
-            contents = contents[1:]
-            kvs.append(["id", id])
-
-        parsed_kvs = {k: v for k, v in kvs}
-        parsed_kvs["repo_base_dir"] = meta.get("repo_base_dir", {}).get("c", "")
-        original_text = stringify_with_newlines(contents)
-
-        handler = info.get("handler_rst")
-        result = handler(parsed_kvs, original_text, contents, ident, classes, kvs)
-
-        normalized = normalize_to_blocks(result)
-        if normalized is None:
-            return None
-
-        return normalized
-    return None
-        
 
 if __name__ == "__main__":
-    toJSONFilter(filter)
+    toJSONFilter(pandoc_filter)

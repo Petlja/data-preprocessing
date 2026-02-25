@@ -1,11 +1,11 @@
 import os
 import re
-from typing import List
 from typing import Any, Optional, Dict, List
+
 from pandocfilters import Div, Para, Str, walk, CodeBlock, RawBlock
+
 from directive_templates import YOUTUBE_LINK
 from scripts.utils import read_str
-
 
 
 def _read_include(repo_root: str, include_path: str) -> Optional[str]:
@@ -13,11 +13,12 @@ def _read_include(repo_root: str, include_path: str) -> Optional[str]:
         return None
     include_file = os.path.join(repo_root, include_path)
     if os.path.isfile(include_file):
-        return read_str(include_file)
+        file_str = read_str(include_file)
+        # Strip asterisks from acsection markers so Pandoc won't parse them as emphasis
+        file_str = re.sub(r"(#\s*)-\*-\s*(acsection:\s*\S+)\s*-\*-", r"# {\2}", file_str)
+        return file_str
     return None
 
-
-ACSECTION_RE = re.compile(r"^\s*#\s*-[-*]*\s*acsection:.*$")
 
 def _clean_activecode(original_text: str) -> Dict[str, str]:
     text_part = ""
@@ -34,14 +35,9 @@ def _clean_activecode(original_text: str) -> Dict[str, str]:
     else:
         code_part = rest
 
-    code_lines = [
-        line for line in code_part.splitlines()
-        if not ACSECTION_RE.match(line)
-    ]
-
     return {
         "text": text_part.strip(),
-        "code": "\n".join(code_lines).strip(),
+        "code": code_part.strip(),
         "hidden": hidden_part.strip(),
     }
 
@@ -69,6 +65,8 @@ def stringify_with_newlines(x: Any) -> str:
     walk(x, go, "", {})
     return ''.join(result)
 
+
+# Shared handlers
 def notes_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
     return original_text.strip()
 
@@ -88,8 +86,7 @@ def activecode_handler(options: Dict[str, Any], original_text: str, contents: Li
         if key in options and options[key]:
             raw = _read_include(repo_root, options[key])
             if raw is not None:
-                lines = [l for l in raw.splitlines() if not ACSECTION_RE.match(l)]
-                hidden += "\n".join(lines).strip()
+                hidden += raw.strip()
                 break
 
     blocks: List[Any] = []
@@ -98,12 +95,14 @@ def activecode_handler(options: Dict[str, Any], original_text: str, contents: Li
         blocks.append(Para([Str(parts["text"])]))
 
     if parts["code"]:
-        blocks.append(Para([Str("Код који ученик види у едитору:")]))
+        blocks.append(RawBlock("html", "<!-- Код који ученик види у едитору: -->"))
         blocks.append(CodeBlock([ident, [], []], parts["code"]))
+        
     
     if hidden:
-        blocks.append(Para([Str("Код који ученик не види:")]))
-        blocks.append(CodeBlock([ident, ["hidden"], []], hidden))
+        blocks.append(RawBlock("html", "<!-- Код који ученик не види:"))
+        blocks.append(CodeBlock([ident, [""], []], hidden))
+        blocks.append(RawBlock("html", "-->"))
 
     return blocks if blocks else ""
 
@@ -119,7 +118,9 @@ def karel_handler(options: Dict[str, Any], original_text: str, contents: List[An
 def quizq_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     return Div([ident, [""], []], contents)
 
-def mchoice_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
+
+# RST-style handlers
+def mchoice_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     correct_raw = options.get("correct", "")
     correct_letters = {c.strip().lower() for c in correct_raw.split(",") if c.strip()}
 
@@ -132,50 +133,53 @@ def mchoice_handler(options: Dict[str, Any], original_text: str, contents: List[
         key = f"answer_{letter}"
         if key in options:
             lines.append(f"{letter}) {options[key]}")
-        
+
+    blocks: List[Any] = [Para([Str("\n".join(lines))])]
+
     if correct_letters:
-        lines.append("")
-        lines.append(f"Тачан одговор(и): {', '.join(sorted(correct_letters))}")
+        blocks.append(RawBlock("html", f"<!-- Тачан одговор(и): {', '.join(sorted(correct_letters))} -->"))
 
-    return "\n".join(lines)
-
+    return blocks
 
 
-def dragndrop_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
-    lines: List[str] = []
+def dragndrop_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
+    blocks: List[Any] = []
     if original_text.strip():
-        lines.append(original_text.strip())
-    lines.append("")
+        blocks.append(Para([Str(original_text.strip())]))
 
+    comment_lines: List[str] = ["<!-- Парови:"]
     for i in range(1, 21):
         key = f"match_{i}"
         if key in options:
             pair_parts = options[key].split("|||")
             if len(pair_parts) == 2:
-                lines.append(f"- {pair_parts[0].strip()} → {pair_parts[1].strip()}")
+                comment_lines.append(f"- {pair_parts[0].strip()} → {pair_parts[1].strip()}")
             else:
-                lines.append(f"- {options[key].strip()}")
+                comment_lines.append(f"- {options[key].strip()}")
+    comment_lines.append("-->")
+    blocks.append(RawBlock("html", "\n".join(comment_lines)))
 
-    return "\n".join(lines)
+    return blocks
 
 
-def parsonsprob_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
+def parsonsprob_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     parts = original_text.split("-----")
-    lines: List[str] = []
+    blocks: List[Any] = []
 
     if len(parts) >= 1:
         question = parts[0].strip()
         if question:
-            lines.append(question)
-            lines.append("")
+            blocks.append(Para([Str(question)]))
 
     if len(parts) >= 2:
         items = [item.strip() for item in parts[1].strip().splitlines() if item.strip()]
-        lines.append("Исправан редослед:")
+        comment_lines = ["<!-- Исправан редослед:"]
         for idx, item in enumerate(items, 1):
-            lines.append(f"{idx}. {item}")
+            comment_lines.append(f"{idx}. {item}")
+        comment_lines.append("-->")
+        blocks.append(RawBlock("html", "\n".join(comment_lines)))
 
-    return "\n".join(lines)
+    return blocks if blocks else ""
 
 
 def fillintheblank_handler(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
@@ -224,48 +228,51 @@ def fillintheblank_handler(options: Dict[str, Any], original_text: str, contents
 
     groups = collect_definition_groups(contents)
 
-    lines: List[str] = []
+    blocks: List[Any] = []
     if question_text:
-        lines.append(question_text)
+        blocks.append(Para([Str(question_text)]))
 
     for idx, group in enumerate(groups, start=1):
         accepted = [d for d in group if not d.get('incorrect')]
         incorrect_entries = [d for d in group if d.get('incorrect')]
 
+        comment_lines: List[str] = []
         # Label each blank when there are multiple
         if len(groups) > 1:
-            lines.append("")
-            lines.append(f"Одговор {idx}:")
+            comment_lines.append(f"<!-- Одговор {idx}:")
+        else:
+            comment_lines.append("<!--")
 
         if accepted:
-            lines.append("")
-            lines.append("Тачни одговор(и):")
+            comment_lines.append("Тачни одговор(и):")
             for d in accepted:
                 pat = d.get('pattern', '').strip()
                 fbs = d.get('feedbacks', [])
                 if fbs:
-                    lines.append(f"- {pat} -> {' | '.join(fbs)}")
+                    comment_lines.append(f"- {pat} -> {' | '.join(fbs)}")
                 else:
-                    lines.append(f"- {pat}")
+                    comment_lines.append(f"- {pat}")
 
         if incorrect_entries:
-            lines.append("")
-            lines.append("Поруке за погрешан одговор:")
+            comment_lines.append("Поруке за погрешан одговор:")
             for d in incorrect_entries:
                 fbs = d.get('feedbacks', [])
                 if fbs:
                     for fb in fbs:
-                        lines.append(f"- {fb}")
+                        comment_lines.append(f"- {fb}")
                 else:
                     pat = d.get('pattern', '').strip()
-                    lines.append(f"- (непозната порука за погрешан унос: {pat})")
+                    comment_lines.append(f"- (непозната порука за погрешан унос: {pat})")
 
-    structured = "\n".join(lines).strip()
+        comment_lines.append("-->")
+        blocks.append(RawBlock("html", "\n".join(comment_lines)))
 
-    return structured if structured else original_text.strip()
+    return blocks if blocks else original_text.strip()
 
 
-def mchoice_handler_md(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
+
+# Markdown-style handlers
+def mchoice_handler_md(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     """Handle mchoice blocks from MD sources (answer1, answer2, … keys; correct is comma-separated indices)."""
     correct_raw = options.get("correct", "")
     correct_indices = {c.strip() for c in correct_raw.split(",") if c.strip()}
@@ -280,14 +287,15 @@ def mchoice_handler_md(options: Dict[str, Any], original_text: str, contents: Li
         if key in options:
             lines.append(f"{i}) {options[key]}")
 
+    blocks: List[Any] = [Para([Str("\n".join(lines))])]
+
     if correct_indices:
-        lines.append("")
-        lines.append(f"Тачан одговор(и): {', '.join(sorted(correct_indices))}")
+        blocks.append(RawBlock("html", f"<!-- Тачан одговор(и): {', '.join(sorted(correct_indices))} -->"))
 
-    return "\n".join(lines)
+    return blocks
 
 
-def fitb_handler_md(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> str:
+def fitb_handler_md(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
     answer_raw = options.get("answer", "")
 
     text = original_text.strip()
@@ -298,17 +306,19 @@ def fitb_handler_md(options: Dict[str, Any], original_text: str, contents: List[
         return f"{{Одговор {blank_counter}}}"
     text = re.sub(r"\|blank\|", _replace_blank, text)
 
-    lines: List[str] = []
+    blocks: List[Any] = []
     if text:
-        lines.append(text)
+        blocks.append(Para([Str(text)]))
 
     if answer_raw:
         answers = [a.strip() for a in answer_raw.split(",") if a.strip()]
-        lines.append("")
+        comment_lines = ["<!--"]
         for i, ans in enumerate(answers, 1):
-                lines.append(f"Одговор {i}: {ans}")
+            comment_lines.append(f"Одговор {i}: {ans}")
+        comment_lines.append("-->")
+        blocks.append(RawBlock("html", "\n".join(comment_lines)))
 
-    return "\n".join(lines)
+    return blocks
 
 
 def pycode_handler_md(options: Dict[str, Any], original_text: str, contents: List[Any], ident: str, classes: List[str], kvs: List[Any]) -> Any:
@@ -343,6 +353,8 @@ DIRECTIVES: Dict[str, Dict[str, Any]] = {
 }
 
 
+
+# Output normalization
 def normalize_to_blocks(result: Optional[Any]) -> Optional[List[Any]]:
     if result is None:
         return None
