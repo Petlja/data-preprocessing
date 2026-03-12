@@ -5,7 +5,7 @@ import os
 from git import Repo, GitCommandError
 from pydantic_core import ValidationError
 from scripts.config import is_git_repo, load_config
-from scripts.sources import MissingPandocError, collect_activity_files, convert_files
+from scripts.sources import MissingPandocError, collect_activity_files, convert_files, write_structure_json
 from logging import getLogger
 
 logger = getLogger(__name__)
@@ -95,6 +95,8 @@ def prepare_dataset(base_dir, output_dir, jobs):
                 elif max_workers > 1:
                     logger.info(f"Converting files in parallel using {max_workers} workers...")
                 convert_files(base_dir, repo, files, output_dir, max_workers=max_workers)
+                structure_path = write_structure_json(base_dir, repo, output_dir)
+                logger.info(f"Wrote structure metadata: {structure_path}")
             except MissingPandocError as e:
                 logger.error(f"Runtime error: {e}")
                 sys.exit(1)
