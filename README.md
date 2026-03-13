@@ -1,155 +1,78 @@
-# data-preprocessing
+# PLCT AI Data Unifier Runner
 
-Tools to fetch and lightly preprocess Sphinx-based documentation repositories.
+Minimal runner wrapper for:
+https://github.com/Petlja/PLCT-AI-Data-Unifier
 
-**Project goals**
-- **Fetch repositories**: clone or update repositories listed in `config.json`.
-- **Detect project type**: identify the Sphinx project type (if applicable).
-- **Extract sources**: collect activity/source files referenced in `_sources/index.yaml` or `source/index.md`and convert them to normalized Markdown.
+This repository is intentionally small. It uses the package above as a dependency
+and only provides a local config and one batch entry point for Windows users.
 
-## Setup
+## What this runner does
 
-If you use Poetry (recommended):
+- Reads repositories from plct-ai-data-unifier-config.yaml.
+- Uses uv to install and lock dependencies from pyproject.toml.
+- Runs the PLCT AI Data Unifier command flow.
+- Keeps generated output on disk after the run is finished.
 
-```powershell
-# Install Poetry if needed
-pip install poetry
+## Configuration
 
-# Install dependencies and create the virtual environment
-poetry install
+Edit plct-ai-data-unifier-config.yaml and keep your repository list under:
 
-# Run the bootstrap command (installs pandoc, syncs repos, prepares dataset)
-python -m scripts.cli bootstrap --config config.json --base-dir repos --output-dir dataset
+```yaml
+repos:
+  - url: https://github.com/Petlja/example-repo
 ```
 
-If you prefer venv + pip:
+You can include as many repos as needed.
 
-```powershell
-# Create and activate a venv
-python -m venv .venv
-.\.venv\Scripts\activate.bat
+## Run
 
-# Install runtime dependencies
-pip install -r requirements.txt
+1. Install uv.
+2. Edit plct-ai-data-unifier-config.yaml.
+3. Run run-au.bat.
 
-# Run the bootstrap command
-python -m scripts.cli bootstrap --config config.json --base-dir repos --output-dir dataset
-```
+Default run is full bootstrap and produces reusable output folders.
 
+## Batch script modes
 
-## Commands
+run-au.bat [config-file] [mode] [base-dir] [output-dir] [jobs]
 
-### `get-pandoc`
-
-Installs Pandoc (using `pypandoc`) if it is not already available, or reports the installed version.
-
-Basic usage:
-
-```powershell
-python -m scripts.cli get-pandoc
-```
-
-Options examples:
-
-
-### `git-sync`
-
-Clone or update repositories listed in a `config.json` file.
-
-Basic usage:
-
-```powershell
-python -m scripts.cli git-sync
-```
-
-Options examples:
-
-```powershell
-python -m scripts.cli git-sync --config my-config.json  # use alternate config file
-python -m scripts.cli git-sync --base-dir repos         # change repos directory
-```
-
-The config file is a JSON object with a top-level `repos` array. Each item may be either a string (the repo URL) or an object with keys `url` and optional `path`.
-
-Example `config.json`:
-
-```json
-{
-  "repos": [
-    { "url": "https://example.com/repo1.git" },
-    { "url": "https://example.com/repo2.git" }
-  ]
-}
-```
-
-### `prepare-dataset`
-
-Convert activity/source files from each repository into a normalized Markdown dataset. This command detects the project type (when possible), collects the list of files from `_sources/index.yaml` or `_sources/index.md`, and converts them to Markdown using Pandoc.
-
-Basic usage:
-
-```powershell
-python -m scripts.cli prepare-dataset
-```
-
-Options examples:
-
-```powershell
-python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset
-```
-
-Additional options:
-
-- `--jobs`: control the number of worker threads for conversions. Use `--jobs 1` to force single-threaded (serial) conversion; omit the option to use the default (number of CPUs), or pass `--jobs N` to use `N` workers explicitly.
+Supported modes:
+- bootstrap
+- git-sync
+- prepare-dataset
 
 Examples:
 
-```powershell
-# Force serial conversion (useful for debugging or on constrained systems)
-python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset --jobs 1
+- Full run (default values)
+  run-au.bat
 
-# Use the default number of workers (number of CPUs)
-python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset
+- Full run with explicit config and serial conversion
+  run-au.bat plct-ai-data-unifier-config.yaml bootstrap repos dataset 1
 
-# Use 4 workers explicitly
-python -m scripts.cli prepare-dataset --base-dir repos --output-dir dataset --jobs 4
-```
+- Only sync repositories
+  run-au.bat plct-ai-data-unifier-config.yaml git-sync repos
 
-Notes:
-- Ensure `pandoc` is available (use `get-pandoc` to install if needed).
+- Only build dataset from already synced repositories
+  run-au.bat plct-ai-data-unifier-config.yaml prepare-dataset repos dataset 4
 
-### `bootstrap`
-
-Convenience command that runs the full local setup flow: ensures Pandoc is installed, syncs repositories listed in `config.json`, then prepares the dataset by converting activity files into normalized Markdown.
-
-Basic usage:
+Equivalent direct uv commands (same as package README, without batch wrapper):
 
 ```powershell
-python -m scripts.cli bootstrap
+uv sync
+uv run plct-ai-data-unifier bootstrap --config plct-ai-data-unifier-config.yaml --base-dir repos --output-dir dataset --jobs 1
+
+# or step by step
+uv run plct-ai-data-unifier git-sync --config plct-ai-data-unifier-config.yaml --base-dir repos
+uv run plct-ai-data-unifier prepare-dataset --base-dir repos --output-dir dataset --jobs 1
 ```
 
-Options examples:
+## Output folders are preserved
 
-```powershell
-python -m scripts.cli bootstrap --config my-config.json --base-dir repos --output-dir dataset
-```
+After a successful run, folders are kept so users can continue to work with the
+result without rerunning everything:
 
-What it does:
-- Runs `get-pandoc` (installs Pandoc via `pypandoc` if missing).
-- Runs `git-sync` to clone or update repositories from `config.json` into `--base-dir`.
-- Runs `prepare-dataset` to collect activity files and convert them into markdown under `--output-dir`.
+- repos
+- dataset
 
-Notes:
-- Useful for initial environment setup on a fresh machine or CI job.
-- The command calls the same underlying code as the three individual commands, so you can still run steps separately when you need more control.
- 
-Notes about parallel conversions:
-
-- The `bootstrap` command forwards the `--jobs` option to `prepare-dataset`. If you experience issues with parallel pandoc conversions or pandoc filters, retry with `--jobs 1` to run conversions serially.
-
-Example (force serial conversion during bootstrap):
-
-```powershell
-python -m scripts.cli bootstrap --config my-config.json --base-dir repos --output-dir dataset --jobs 1
-```
+No cleanup is performed by run-au.bat.
 
