@@ -13,6 +13,33 @@ and only provides a local config and one batch entry point for Windows users.
 - Runs the PLCT AI Data Unifier command flow.
 - Keeps generated output on disk after the run is finished.
 
+## Prerequisites
+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip.
+- Have cloned [PLCT-AI-Data-Unifier](https://github.com/Petlja/PLCT-AI-Data-Unifier)
+  in the sibling `PLCT-AI-Data-Unifier` directory (see the source path in
+  `pyproject.toml`).
+
+## Dependency on the sibling project
+
+Both repos share the same parent directory:
+
+```
+parent-dir/
+├── PLCT-AI-Data-Unifier/
+└── data-preprocessing/
+```
+
+The dependency is wired to the sibling folder in `pyproject.toml`:
+
+```toml
+[tool.uv.sources]
+plct-ai-data-unifier = { path = "../PLCT-AI-Data-Unifier", editable = true }
+```
+
+The install is editable, so changes in the sibling repo take effect without
+reinstalling.
+
 ## Configuration
 
 Edit plct-ai-data-unifier-config.yaml and keep your repository list under:

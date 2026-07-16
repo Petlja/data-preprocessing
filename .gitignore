@@ -1,3 +1,5 @@
 .venv/
 dataset/
 repos/
+__pycache__
+uv.lock

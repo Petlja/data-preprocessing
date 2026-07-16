@@ -9,4 +9,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-plct-ai-data-unifier = { git = "https://github.com/Petlja/PLCT-AI-Data-Unifier" }
+plct-ai-data-unifier = { path = "../PLCT-AI-Data-Unifier", editable = true }
