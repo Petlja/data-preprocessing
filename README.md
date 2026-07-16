@@ -1,4 +1,4 @@
-# PLCT AI Data Unifier Runner
+# Data Prepprocesing using PLCT AI Data Unifier
 
 Minimal runner wrapper for:
 https://github.com/Petlja/PLCT-AI-Data-Unifier
